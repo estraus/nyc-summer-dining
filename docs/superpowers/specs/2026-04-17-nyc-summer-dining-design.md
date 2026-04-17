@@ -47,8 +47,8 @@ This spec covers a v1 end-to-end system: seeded dataset → filter + AI ranking 
 | Backend | Python 3.12 + FastAPI | Best ecosystem for scraping + async APIs. Pydantic models double as schemas. |
 | Database | SQLite | Dataset is <500 rows. Single-node app. Easy backups. Zero ops. |
 | Frontend | Static HTML/CSS/vanilla JS | Matches existing Claude/dining neighbors (ai-travel-recommender). No build step. |
-| LLM | Anthropic SDK, `claude-sonnet-4-6` | Smart enough for ranking, fast, cheap with prompt caching. |
-| Hosting | Fly.io, single small instance + persistent volume | ~$3-5/mo. SQLite fits. Simple deploys. |
+| LLM | Anthropic SDK, `claude-haiku-4-5-20251001` | Plenty smart for shortlist ranking; ~4-5x cheaper than Sonnet at this scale. Easy to upgrade to Sonnet later if quality isn't enough. |
+| Hosting | Fly.io, auto-stop single small machine + persistent volume | ~$0-2/mo with auto-stop (scale-to-zero when idle). ~2-5s cold start on first request after idle; fine for casual use. |
 | Dep mgmt | `uv` | Faster install, simpler lockfile than Poetry. |
 
 ### Repo layout
@@ -310,10 +310,11 @@ Backend streams as SSE events. Parsing `<card id="X">reason</card>` tags is simp
 
 ### Claude call spec
 
-- Model: `claude-sonnet-4-6` (confirm latest at impl time).
+- Model: `claude-haiku-4-5-20251001` (Haiku 4.5). Confirm latest at impl time.
 - Max tokens: 1500.
 - Temperature: 0.3 (lightly creative reasons, stable ranking).
 - Prompt caching: system prompt cached. Shortlist+preferences not cached (varies per query).
+- If ranking quality ever feels off, swap to Sonnet is a one-line config change. Keep a flag `LLM_MODEL` env var so we can switch without redeploying code.
 
 ### Frontend result cards
 
@@ -458,7 +459,7 @@ Each card shows:
 ## Deployment
 
 - `Dockerfile` (multi-stage): build frontend (none needed, static), then Python image with app + migrations.
-- `fly.toml`: single machine, persistent volume mounted at `/data` for SQLite + backups.
+- `fly.toml`: single machine with `auto_stop_machines = "stop"` and `min_machines_running = 0` (scale to zero when idle). Persistent volume mounted at `/data` for SQLite + backups. First request after idle takes ~2-5s to wake the machine; subsequent requests are instant.
 - `migrations/` runs on startup (idempotent; tracked via `schema_versions` table).
 - CI (GitHub Actions): on every PR, run ruff + pyright + unit + integration tests.
 - Deploy: manual `fly deploy` from local. No auto-deploy on main.
@@ -469,11 +470,13 @@ Each card shows:
 |---|---|---|
 | Resy unofficial API changes/breaks | Availability check broken | Nightly contract test alerts; graceful fallback to "book on Resy" link; clean protocol boundary means easy to swap in a patch. |
 | Publication HTML changes break scrapers | Re-seed fails for that publication | HTML fixtures + re-record on drift; seeders run on-demand, not ambient; failure doesn't break live app. |
-| Claude cost overrun | $ | Prompt caching on system prompt; small shortlist inputs; hard cap of 8 results per ranking call. At expected volume, <$10/mo. |
+| Claude cost overrun | $ | Haiku 4.5 model (not Sonnet); prompt caching on system prompt; small shortlist inputs; hard cap of 8 results per ranking call. At expected volume, <$1/mo. |
 | DB file corruption | Data loss | Nightly backups; DB is git-trackable by file size; can rebuild from `seed/*.json` + notes export. |
 | Shared password leak | Unknown friend of friend has access | Rotate password by redeploying new hash; no real harm since no sensitive data; rate-limited login. |
 | Stale/closed restaurants | Bad recommendations | Admin "mark closed" is one click; Resy 404 auto-flags; recent publications only. |
 | Scope creep during summer | v1 delayed, never shipped | v1 scope locked in this doc; new ideas go to a `docs/superpowers/specs/v2-ideas.md` backlog. |
+| Fly cold-start delay on first request | ~2-5s lag on first query after idle | Accepted trade for ~$0-2/mo hosting. If lag becomes annoying, set `min_machines_running = 1` to keep warm at ~$3-5/mo. |
+| Haiku ranking quality worse than Sonnet | Less tasteful "why this one" blurbs | `LLM_MODEL` env var allows instant swap to Sonnet; no redeploy of code. |
 
 ## Implementation order (rough)
 
@@ -519,3 +522,5 @@ A full plan will be produced by the writing-plans skill. Rough phases for sizing
 | Streaming AI blurbs | Yes | All-at-once |
 | Resy venue_id lookup | Auto by name | Require URL paste |
 | Auth mechanism | Shared password + name picker | Magic link |
+| LLM model | Haiku 4.5 (cheap) | Sonnet 4.6 (smarter, ~5x cost) |
+| Fly.io scaling | auto-stop (scale to zero when idle) | always-on machine (~$3-5/mo) |
