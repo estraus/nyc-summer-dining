@@ -2,10 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Log in · NYC Dining</title>
   <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
-  <main><h1>Log in</h1><p>Login UI lives here.</p></main>
+  <main class="auth">
+    <h1>NYC Dining</h1>
+
+    <section id="password-step">
+      <h2>Password</h2>
+      <form id="password-form">
+        <label>
+          <span>Shared password</span>
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit">Continue</button>
+        <p id="password-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="name-step" hidden>
+      <h2>Who's this?</h2>
+      <ul id="name-list"></ul>
+      <form id="new-name-form">
+        <label>
+          <span>Or add a new name</span>
+          <input type="text" name="display_name" maxlength="50" pattern="[A-Za-z0-9 ._-]+" required />
+        </label>
+        <button type="submit">Continue as new</button>
+        <p id="name-error" class="error" hidden></p>
+      </form>
+    </section>
+  </main>
+  <script src="/js/login.js" type="module"></script>
 </body>
 </html>
