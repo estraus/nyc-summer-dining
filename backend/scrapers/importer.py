@@ -63,9 +63,7 @@ def import_seed(db_path: Path, seeds: list[SeedRestaurant]) -> ImportResult:
     try:
         for seed in seeds:
             slug = seed.slug()
-            existing = conn.execute(
-                "SELECT id FROM restaurants WHERE id = ?", (slug,)
-            ).fetchone()
+            existing = conn.execute("SELECT id FROM restaurants WHERE id = ?", (slug,)).fetchone()
             if existing is None:
                 conn.execute(
                     """
