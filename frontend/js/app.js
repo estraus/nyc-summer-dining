@@ -1,4 +1,4 @@
-import { whoami } from "/js/api.js";
+import { checkAvailability, whoami } from "/js/api.js";
 import { streamSSE } from "/js/stream.js";
 
 const whoEl = document.getElementById("who");
@@ -102,6 +102,9 @@ function renderCard(candidate, reason) {
   card.appendChild(chips);
 
   const action = bookingAction(candidate);
+  const actionRow = document.createElement("div");
+  actionRow.className = "action-row";
+
   if (action.href) {
     const a = document.createElement("a");
     a.href = action.href;
@@ -109,14 +112,73 @@ function renderCard(candidate, reason) {
     a.textContent = action.label;
     a.target = "_blank";
     a.rel = "noopener";
-    card.appendChild(a);
+    actionRow.appendChild(a);
   } else if (action.label) {
     const span = document.createElement("span");
     span.className = "pill";
     span.textContent = action.label;
-    card.appendChild(span);
+    actionRow.appendChild(span);
   }
 
+  const fd = new FormData(form);
+  const date = fd.get("date");
+  const timeVal = fd.get("time");
+  const party = fd.get("party");
+  if (
+    candidate.booking_platform === "resy" &&
+    candidate.resy_venue_id &&
+    date &&
+    timeVal &&
+    party
+  ) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-secondary";
+    btn.textContent = "Check availability";
+    const slotsEl = document.createElement("div");
+    slotsEl.className = "slots";
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      slotsEl.textContent = "Checking…";
+      const { status, body } = await checkAvailability({
+        restaurantId: candidate.id,
+        party,
+        date,
+        time: timeVal,
+      });
+      slotsEl.innerHTML = "";
+      if (status === 200) {
+        if ((body.slots ?? []).length === 0) {
+          slotsEl.textContent = "No slots within ±2h. Try another time.";
+        } else {
+          for (const slot of body.slots) {
+            const a = document.createElement("a");
+            a.className = "slot-pill";
+            a.href = slot.book_url;
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.textContent = slot.time;
+            slotsEl.appendChild(a);
+          }
+        }
+      } else if (status === 400 && body.detail === "use_booking_url") {
+        slotsEl.textContent = "Book directly — availability not available here.";
+      } else if (status === 404 && body.detail === "venue_not_found") {
+        slotsEl.textContent = "Venue missing on Resy. Flagged for review.";
+      } else if (status === 503) {
+        slotsEl.textContent = "Resy unreachable — try the booking link above.";
+      } else {
+        slotsEl.textContent = "Could not check availability.";
+      }
+      btn.disabled = false;
+    });
+    actionRow.appendChild(btn);
+    card.appendChild(actionRow);
+    card.appendChild(slotsEl);
+    return card;
+  }
+
+  card.appendChild(actionRow);
   return card;
 }
 
