@@ -1,4 +1,5 @@
-import { search, whoami } from "/js/api.js";
+import { whoami } from "/js/api.js";
+import { streamSSE } from "/js/stream.js";
 
 const whoEl = document.getElementById("who");
 const form = document.getElementById("search-form");
@@ -125,17 +126,29 @@ form.addEventListener("submit", async (event) => {
   resultsEl.innerHTML = "<p>Searching&hellip;</p>";
   try {
     const payload = buildPayload();
-    const data = await search(payload);
-    const byId = new Map(data.candidates.map((c) => [c.id, c]));
-    resultsEl.innerHTML = "";
-    if (data.ranked.length === 0) {
-      resultsEl.innerHTML = "<p>No matches. Try relaxing your filters.</p>";
-      return;
-    }
-    for (const r of data.ranked) {
-      const candidate = byId.get(r.id);
-      if (!candidate) continue;
-      resultsEl.appendChild(renderCard(candidate, r.reason));
+    let candidatesById = new Map();
+    const renderedIds = new Set();
+    for await (const evt of streamSSE("/api/search/stream", payload)) {
+      if (evt.event === "candidates") {
+        candidatesById = new Map(evt.data.candidates.map((c) => [c.id, c]));
+      } else if (evt.event === "card") {
+        const candidate = candidatesById.get(evt.data.id);
+        if (!candidate) continue;
+        if (renderedIds.size === 0) resultsEl.innerHTML = "";
+        if (renderedIds.has(evt.data.id)) {
+          const existing = resultsEl.querySelector(
+            `[data-id="${evt.data.id}"] [data-role="reason"]`,
+          );
+          if (existing) existing.textContent = evt.data.reason || existing.textContent;
+        } else {
+          renderedIds.add(evt.data.id);
+          resultsEl.appendChild(renderCard(candidate, evt.data.reason));
+        }
+      } else if (evt.event === "done") {
+        if (renderedIds.size === 0) {
+          resultsEl.innerHTML = "<p>No matches. Try relaxing your filters.</p>";
+        }
+      }
     }
   } catch (err) {
     resultsEl.innerHTML = `<p class="error">${err.message}</p>`;
