@@ -21,6 +21,10 @@ def create_app() -> FastAPI:
     application = FastAPI(title="NYC Dining", lifespan=lifespan)
     frontend_dir: Path = settings.frontend_dir
 
+    from app.routes import auth as auth_routes
+
+    application.include_router(auth_routes.router)
+
     @application.get("/healthz")
     def healthz() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"status": "ok"}
