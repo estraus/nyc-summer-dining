@@ -7,10 +7,78 @@
   <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
-  <main id="app">
+  <header class="topbar">
     <h1>NYC Dining</h1>
-    <p id="status">Loading&hellip;</p>
+    <p id="who"></p>
+  </header>
+
+  <main>
+    <form id="search-form" class="search-form">
+      <fieldset>
+        <legend>Where</legend>
+        <label>
+          <span>Neighborhoods (comma separated)</span>
+          <input type="text" name="neighborhoods" placeholder="West Village, Williamsburg" />
+        </label>
+        <label>
+          <span>Boroughs</span>
+          <select name="boroughs" multiple size="5">
+            <option>Manhattan</option>
+            <option>Brooklyn</option>
+            <option>Queens</option>
+            <option>Bronx</option>
+            <option>Staten Island</option>
+          </select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>What</legend>
+        <label>
+          <span>Cuisines (comma separated)</span>
+          <input type="text" name="cuisines" placeholder="italian, japanese" />
+        </label>
+        <label>
+          <span>Vibes</span>
+          <select name="vibes" multiple size="6">
+            <option value="casual">casual</option>
+            <option value="nice">nice</option>
+            <option value="date-night">date-night</option>
+            <option value="group">group</option>
+            <option value="counter-only">counter-only</option>
+            <option value="outdoor">outdoor</option>
+            <option value="rooftop">rooftop</option>
+            <option value="late-night">late-night</option>
+            <option value="tasting-menu">tasting-menu</option>
+            <option value="natural-wine">natural-wine</option>
+          </select>
+        </label>
+        <label>
+          <span>Price ceiling</span>
+          <select name="price_ceiling">
+            <option value="">any</option>
+            <option value="1">$</option>
+            <option value="2">$$</option>
+            <option value="3">$$$</option>
+            <option value="4">$$$$</option>
+          </select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Notes</legend>
+        <label>
+          <span>Preferences (free-form)</span>
+          <textarea name="preferences_text" rows="3" placeholder="Casual dinner with a friend, walkable from the L train"></textarea>
+        </label>
+      </fieldset>
+
+      <button type="submit" id="search-btn">Find spots</button>
+    </form>
+
+    <section id="results" class="results"></section>
   </main>
-  <script src="/js/app.js" type="module"></script>
+
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>
