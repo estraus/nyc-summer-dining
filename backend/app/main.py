@@ -1,23 +1,38 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
-
-app = FastAPI(title="NYC Dining")
-
-
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+from app.config import get_settings
+from app.db import run_migrations
 
 
-@app.get("/")
-def root() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html", media_type="text/html")
+def create_app() -> FastAPI:
+    settings = get_settings()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        run_migrations(settings.db_path)
+        yield
+
+    application = FastAPI(title="NYC Dining", lifespan=lifespan)
+    frontend_dir: Path = settings.frontend_dir
+
+    @application.get("/healthz")
+    def healthz() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
+        return {"status": "ok"}
+
+    @application.get("/")
+    def root() -> FileResponse:  # pyright: ignore[reportUnusedFunction]
+        return FileResponse(frontend_dir / "index.html", media_type="text/html")
+
+    application.mount("/css", StaticFiles(directory=frontend_dir / "css"), name="css")
+    application.mount("/js", StaticFiles(directory=frontend_dir / "js"), name="js")
+
+    return application
 
 
-app.mount("/css", StaticFiles(directory=FRONTEND_DIR / "css"), name="css")
-app.mount("/js", StaticFiles(directory=FRONTEND_DIR / "js"), name="js")
+app = create_app()
