@@ -55,9 +55,7 @@ def get_user_by_name(db_path: Path, display_name: str) -> User | None:
 def get_user_by_id(db_path: Path, user_id: int) -> User | None:
     conn = connect(db_path)
     try:
-        row = conn.execute(
-            "SELECT id, display_name FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+        row = conn.execute("SELECT id, display_name FROM users WHERE id = ?", (user_id,)).fetchone()
     finally:
         conn.close()
     if row is None:

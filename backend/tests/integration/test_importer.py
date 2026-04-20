@@ -55,9 +55,7 @@ def test_import_inserts_restaurants_and_tags(db: Path) -> None:
     conn = connect(db)
     try:
         rows = conn.execute("SELECT id, name FROM restaurants ORDER BY id").fetchall()
-        tag_rows = conn.execute(
-            "SELECT t.name, t.kind FROM tags t ORDER BY t.name"
-        ).fetchall()
+        tag_rows = conn.execute("SELECT t.name, t.kind FROM tags t ORDER BY t.name").fetchall()
         rt_count = conn.execute("SELECT COUNT(*) FROM restaurant_tags").fetchone()[0]
         src_count = conn.execute("SELECT COUNT(*) FROM restaurant_sources").fetchone()[0]
     finally:

@@ -8,9 +8,7 @@ from app.auth import hash_password
 
 
 @pytest.fixture
-def password_client(
-    tmp_db: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[TestClient]:
+def password_client(tmp_db: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv("SHARED_PASSWORD_HASH", hash_password("open-sesame"))
     from app.main import create_app
 

@@ -36,9 +36,7 @@ def test_run_migrations_is_idempotent(tmp_db: Path) -> None:
     run_migrations(tmp_db)
     conn = connect(tmp_db)
     try:
-        versions = conn.execute(
-            "SELECT version FROM schema_versions ORDER BY version"
-        ).fetchall()
+        versions = conn.execute("SELECT version FROM schema_versions ORDER BY version").fetchall()
     finally:
         conn.close()
     assert [v[0] for v in versions] == [1]

@@ -8,9 +8,7 @@ from app.auth import hash_password, sign_session
 
 
 @pytest.fixture
-def app_client(
-    tmp_db: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[TestClient]:
+def app_client(tmp_db: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv("SHARED_PASSWORD_HASH", hash_password("open-sesame"))
     monkeypatch.setenv("COOKIE_SIGNING_KEY", "test-key")
     from app.main import create_app
