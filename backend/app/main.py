@@ -80,8 +80,10 @@ def create_app() -> FastAPI:
     application.mount("/js", StaticFiles(directory=frontend_dir / "js"), name="js")
 
     from app.routes import auth as auth_routes
+    from app.routes import search as search_routes
 
     application.include_router(auth_routes.router)
+    application.include_router(search_routes.router)
 
     return application
 
