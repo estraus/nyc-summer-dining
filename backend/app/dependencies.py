@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 from app.config import get_settings
 from app.services.llm_client import AnthropicLLMClient, LLMClient
+from app.services.resy_client import RealResyClient, ResyClient
 
 
 @lru_cache(maxsize=1)
@@ -24,3 +26,25 @@ def get_llm_client() -> LLMClient:
 def set_llm_override(client: LLMClient | None) -> None:
     global _llm_override
     _llm_override = client
+
+
+_resy_override: ResyClient | None = None
+
+
+@lru_cache(maxsize=1)
+def _real_resy() -> ResyClient:
+    return RealResyClient(
+        api_key=os.getenv("RESY_API_KEY", ""),
+        auth_token=os.getenv("RESY_AUTH_TOKEN", ""),
+    )
+
+
+def get_resy_client() -> ResyClient:
+    if _resy_override is not None:
+        return _resy_override
+    return _real_resy()
+
+
+def set_resy_override(client: ResyClient | None) -> None:
+    global _resy_override
+    _resy_override = client
