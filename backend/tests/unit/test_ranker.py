@@ -1,5 +1,7 @@
+from collections.abc import AsyncIterator
+
 from app.services.llm_client import FakeLLMClient
-from app.services.ranker import RankingRequest, parse_cards, rank_sync
+from app.services.ranker import RankingRequest, parse_cards, rank_sync, stream_cards
 from app.services.shortlist import ShortlistItem
 
 
@@ -88,3 +90,87 @@ def test_rank_sync_falls_back_when_llm_returns_garbage() -> None:
     # Fallback: shortlist order (source_count desc, then name).
     assert [c.id for c in ranked] == ["lilia-williamsburg", "nami-nori-west-village"]
     assert all(c.reason == "" for c in ranked)
+
+
+def _simple_items() -> list[ShortlistItem]:
+    return [
+        ShortlistItem(
+            id="a",
+            name="A",
+            neighborhood=None,
+            borough=None,
+            price_tier=None,
+            booking_platform=None,
+            booking_url=None,
+            resy_venue_id=None,
+            description=None,
+        ),
+        ShortlistItem(
+            id="b",
+            name="B",
+            neighborhood=None,
+            borough=None,
+            price_tier=None,
+            booking_platform=None,
+            booking_url=None,
+            resy_venue_id=None,
+            description=None,
+        ),
+    ]
+
+
+async def test_stream_cards_yields_as_tags_close() -> None:
+    stream_pieces = [
+        '<card id="a">reason-',
+        "a</card>",
+        '<card id="b">reason',
+        "-b</card>",
+    ]
+    llm = FakeLLMClient(stream_responses=[stream_pieces])
+    req = RankingRequest(shortlist=_simple_items(), target_n=2)
+    out: list[object] = []
+    async for card in stream_cards(llm=llm, request=req, model="m"):
+        out.append(card)
+    from app.services.ranker import RankedCard
+
+    cards = [c for c in out if isinstance(c, RankedCard)]
+    assert [c.id for c in cards] == ["a", "b"]
+    assert cards[0].reason == "reason-a"
+    assert cards[1].reason == "reason-b"
+
+
+async def test_stream_cards_handles_llm_error() -> None:
+    class BoomLLM:
+        async def stream(
+            self,
+            *,
+            system: str,
+            user: str,
+            max_tokens: int,
+            temperature: float = 0.3,
+            model: str | None = None,
+        ) -> AsyncIterator[str]:
+            raise RuntimeError("boom")
+            yield  # pragma: no cover
+
+        def complete(
+            self,
+            *,
+            system: str,
+            user: str,
+            max_tokens: int,
+            temperature: float = 0.3,
+            model: str | None = None,
+        ) -> str:
+            raise RuntimeError("boom")
+
+    req = RankingRequest(shortlist=[_simple_items()[0]], target_n=1)
+    out: list[object] = []
+    async for card in stream_cards(llm=BoomLLM(), request=req, model="m"):
+        out.append(card)
+    from app.services.ranker import RankedCard
+
+    cards = [c for c in out if isinstance(c, RankedCard)]
+    # Fallback yields the shortlist order with empty reasons
+    assert [c.id for c in cards] == ["a"]
+    assert cards[0].reason == ""

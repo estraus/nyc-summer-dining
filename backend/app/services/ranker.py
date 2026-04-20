@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -109,3 +110,41 @@ def rank_sync(
         return _fallback(request)
     valid_ids = {item.id for item in request.shortlist}
     return [c for c in cards if c.id in valid_ids]
+
+
+async def stream_cards(
+    *,
+    llm: LLMClient,
+    request: RankingRequest,
+    model: str,
+) -> AsyncIterator[RankedCard]:
+    if not request.shortlist:
+        return
+    valid_ids = {item.id for item in request.shortlist}
+    buffer = ""
+    emitted = False
+    try:
+        user_prompt = _build_user_prompt(request)
+        async for chunk in llm.stream(
+            system=SYSTEM_PROMPT,
+            user=user_prompt,
+            max_tokens=1500,
+            temperature=0.3,
+            model=model,
+        ):
+            buffer += chunk
+            while True:
+                match = _CARD_RE.search(buffer)
+                if not match:
+                    break
+                slug = match.group(1).strip()
+                reason = " ".join(match.group(2).split())
+                buffer = buffer[match.end() :]
+                if slug in valid_ids:
+                    emitted = True
+                    yield RankedCard(id=slug, reason=reason)
+    except Exception:
+        pass
+    if not emitted:
+        for card in _fallback(request):
+            yield card
