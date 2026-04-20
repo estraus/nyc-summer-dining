@@ -103,7 +103,7 @@ class SeedRestaurant(BaseModel):
     cuisine_tags: list[str] = Field(default_factory=list)
     vibe_tags: list[str] = Field(default_factory=list)
     feature_tags: list[str] = Field(default_factory=list)
-    sources: list[SeedSource] = Field(default_factory=list)
+    sources: list[SeedSource] = Field(default_factory=list[SeedSource])
 
     @field_validator("cuisine_tags", "vibe_tags", "feature_tags")
     @classmethod
