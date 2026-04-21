@@ -1,0 +1,276 @@
+NYC DINING — DESIGN BRIEF
+=========================
+
+A private, password-gated dining recommender for a small group. Restaurants are
+filtered in SQL, ranked by Claude, and streamed into cards. The app has one main
+page (search + results) and a two-step login.
+
+Design direction: Japanese minimal (Muji / Aesop / Kinfolk).
+Goal: a quiet, reverent reading surface for restaurant recommendations — sparse,
+warm, almost print-like. No boxed-in "app chrome," no gradients, no drop shadows.
+The eye should move through recommendations the way you'd read a small guidebook.
+
+
+PRINCIPLES
+----------
+1. Radical restraint. Remove before adding. If a border, icon, or shadow isn't
+   load-bearing, cut it.
+2. Negative space is the primary design element. Whitespace between cards should
+   feel generous, almost wasteful.
+3. Hairlines, not boxes. Use 1px warm-gray rules to separate content instead of
+   filled cards or drop shadows.
+4. Warm off-white, not cold white. The canvas should feel like uncoated paper.
+5. One accent only — a muted taupe. No bright blues, no brand primaries.
+6. Type carries the tone. A serif for content (names, descriptions) paired with
+   a humanist sans for labels and UI.
+7. Small type, not tiny. Labels 11px (uppercase tracked), body 15px, names 24px.
+8. Asymmetry is allowed and encouraged — not every element needs to be centered
+   or perfectly aligned. A card with its rule only on top reads more naturally
+   than one boxed on all four sides.
+
+
+PALETTE (hex)
+-------------
+Base canvas       #F5F2EB   warm bone, slight cream
+Surface elevated  #FAF8F4   cards / inputs when lifted (barely distinguishable)
+Ink primary       #1A1814   warm near-black, for headings and serious text
+Ink body          #3D3A33   long-form reading color
+Ink muted         #8A857B   meta, captions, secondary labels
+Hairline          #D9D4C7   1px dividers, input underlines
+Hairline emphasis #B8B0A0   hover/active states for hairlines
+Accent            #7A6B4F   taupe — use sparingly: active states, key link underline
+Accent soft       #C5B89C   chip/pill backgrounds when filled
+Error             #8B3A2F   muted brick, not fire-engine red
+Success           #4F6B4C   muted moss, not bright green
+
+No pure black (#000). No pure white (#FFF). No saturated blues or greens.
+
+
+TYPOGRAPHY
+----------
+Content / display:  "Source Serif 4", "Noto Serif", Georgia, serif
+                    Weights: 300 (regular), 400, 500 (emphasis only)
+                    Use for: page titles, restaurant names, long descriptions,
+                    slot times, empty-state prose.
+
+UI / labels:        "Inter", "IBM Plex Sans", system-ui, sans-serif
+                    Weights: 400, 500
+                    Use for: fieldset labels, chips, buttons, meta rows,
+                    form inputs.
+
+Numeric emphasis:   Tabular lining figures on both serif and sans.
+                    (font-feature-settings: "tnum" 1)
+
+Scale (type / line-height / weight):
+- display-xl     40 / 1.1   / 300   page/hero titles (login)
+- display-l      28 / 1.2   / 400   restaurant card name
+- display-m      20 / 1.3   / 400   section titles ("Where", "What")
+- body           15 / 1.6   / 400   descriptions, long text
+- body-sm        14 / 1.55  / 400   card meta sentences
+- label          11 / 1.4   / 500   UPPERCASE, letter-spacing 0.12em
+- mono           13 / 1.4   / 400   prices, slot times (optional: JetBrains Mono)
+
+Headline rule: serif display at weight 300 or 400 — never 700. Bold is vulgar
+here. Emphasis comes from spacing and size, not weight.
+
+
+SPACING SCALE
+-------------
+Base unit: 4px. Used values: 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
+Dominant values for this design: 24, 48, 64.
+
+- Card → card gap:            64px vertical
+- Fieldset → fieldset gap:    48px vertical
+- Label → input gap:          12px
+- Input → input gap:          24px
+- Section outer padding:      48px vertical, 32px horizontal (mobile), 96px (desktop)
+- Max content width:          680px (narrower than typical — feels reverent)
+
+
+LAYOUT
+------
+Single column, centered, max-width 680px. Page uses the full viewport height
+with comfortable vertical padding (96px top on desktop, 48px on mobile).
+
+Topbar:
+  - No colored bar. Just content at the top of the page.
+  - Left: the text "NYC DINING" in label style (11px uppercase tracked, ink muted).
+  - Right: "EL" (two-letter initials of display name) in label style, ink muted.
+    If not logged in, this is empty.
+  - A hairline (1px, color Hairline) 32px below the topbar row.
+
+Search form:
+  - No fieldset borders. Each group uses only a label rule:
+      Label (11px uppercase tracked, color Ink muted) above a hairline,
+      with 12px gap before the inputs.
+  - Inputs are underline-only (not boxed):
+      No border, no background, 1px hairline bottom.
+      Focus: hairline thickens to 1.5px and shifts to Accent color.
+  - Multi-selects: replace the native <select multiple> with inline tag rows.
+    Each tag is a chip with a hairline outline; clicking toggles it filled
+    (background: Accent soft; text: Ink primary) vs empty.
+  - Textarea: same underline styling, no box. Min-height 96px.
+  - Submit button: plain text "Find spots →" with a 1px bottom rule.
+    Weight 500, color Ink primary on hover Ink primary with Accent rule.
+    No pill button, no filled block.
+
+Results section:
+  - Hairline above the first card and between every card; none below the last.
+  - Cards do not have a container — they share the page canvas. No border on
+    left/right, no shadow, no radius.
+  - Card layout (top to bottom, generous gaps):
+      1. Name (display-l, serif, Ink primary).
+      2. Meta row (body-sm, Ink muted):
+           "Williamsburg · Brooklyn · $$$"
+         Tiny middle-dots (·) as separators. No icons.
+      3. Description / "why it matches" (body, Ink body).
+         LLM-generated reason appears here; while streaming, show a single
+         low-contrast em-dash "—" placeholder in Ink muted. When the reason
+         lands, it fades in over 200ms.
+      4. Tags row (label style, Ink muted): "ITALIAN · PASTA · DATE-NIGHT".
+      5. Sources: quieter still. Italic serif body-sm in Ink muted, with the
+         publication name and list: "The Infatuation · Hit List 2026".
+      6. Action row: two inline text links separated by a 32px gap.
+         - "Book on Resy →" (serif, Ink primary, 1px underline in Accent)
+         - "Check availability →" (serif, Ink primary, 1px underline in Hairline)
+         No buttons. No filled rectangles.
+  - If availability has been checked, slot pills appear below the action row:
+      - Row of 14×28px pills, hairline border, time in mono or serif,
+        8px horizontal gap, 8px top margin.
+      - On hover: hairline color shifts to Accent.
+      - Unavailable state: a single italic line, "no slots within ±2h",
+        body-sm Ink muted.
+
+Empty / loading / error states:
+  - Empty (no results yet): a centered line of italic serif body text in
+    Ink muted, e.g. "Tell me where to eat." 96px of vertical space on each side.
+  - Loading / searching: the same line reads "Thinking…" in italic serif.
+    Do not use a spinner. No progress bar. Just the word.
+  - No matches: italic serif, "Nothing fits. Loosen a filter."
+  - Error: small body-sm line at the top of the results area, Error color,
+    e.g. "Something went wrong. Try again in a moment."
+
+
+COMPONENT DETAILS
+-----------------
+Chips (tag toggles in the form):
+  - Height 28px, horizontal padding 12px, radius 0 (sharp corners).
+  - Default: transparent background, 1px Hairline border, Ink body text.
+  - Active: Accent soft background, 1px Accent border, Ink primary text.
+  - Hover (inactive): border shifts to Hairline emphasis.
+  - Label style text (11px uppercase tracked).
+  - Wrap into multiple rows with 8px vertical and horizontal gap.
+
+Slot pills (availability results):
+  - Same geometry as chips, but always bordered.
+  - Text: serif, 14px, weight 400. Time format: "7:30" not "19:30".
+  - Anchor tag, opens new window.
+
+Buttons:
+  - Primary inline link-button: serif text + trailing "→", 1px underline in
+    Accent, 4px gap between text and arrow.
+  - Secondary: same text style, underline in Hairline, underline shifts to
+    Accent on hover.
+  - Disabled: Ink muted text, no underline.
+  - No filled / no radius / no shadow buttons anywhere.
+
+Form inputs (text, number, date, time):
+  - Transparent background, no left/right/top border, 1px Hairline bottom.
+  - Height 40px, no internal horizontal padding beyond 0 (flush with label).
+  - Focus: bottom border becomes 1.5px Accent; no focus ring.
+  - Placeholder text: Ink muted, italic serif for text inputs so the canvas
+    feels bookish; sans-serif for date/time/number.
+
+Dividers:
+  - 1px Hairline, full content width. Used sparingly: once below the topbar,
+    above each card, and above the form submit.
+
+
+STATES / MICRO-INTERACTION
+--------------------------
+- Hover on hairline element: color shifts from Hairline to Hairline emphasis.
+- Focus: never a blue ring. Use a 1.5px Accent underline for inputs and a
+  1px Accent left border (16px outside the element, in the gutter) for
+  buttons and cards when focused via keyboard.
+- Transitions: 150ms ease-out on color, 200ms ease-out on opacity.
+- No bouncing, no scale, no spring. A single fade for card appearance.
+
+Card entrance animation (streaming):
+  - Opacity from 0 → 1 over 200ms with a 4px translateY(-4px) → 0.
+  - Stagger 40ms between cards — but only the first four; after that, instant.
+
+
+LOGIN FLOW
+----------
+A single narrow column, 380px wide, centered vertically and horizontally in
+the viewport.
+
+Step 1 — password:
+  Title "NYC Dining" (display-xl, serif, 300).
+  Subtitle "Enter the house password." (italic body, Ink muted), 24px gap.
+  Single underlined password input, Accent focus state, 32px gap.
+  Submit link "Continue →" (serif, Accent underline).
+
+Step 2 — name picker:
+  Title "Who's here?" (display-xl).
+  Subtitle "Tap your name, or add a new one." (italic body, Ink muted).
+  A column of name rows. Each row: serif name (display-m) on a line with a
+  hairline below. Hover: left margin shifts right by 8px (the row pulls in
+  toward the reader). Click: select and continue.
+  Below the list: an underlined input to add a new name, then "Add →".
+
+
+RESPONSIVE
+----------
+Single breakpoint at 680px:
+  - Below 680: reduce outer padding to 24px horizontal / 48px vertical, type
+    scale drops one step (display-xl 32, display-l 24, display-m 18), card
+    gap collapses from 64 → 48.
+  - Above 680: as specified above.
+
+Nothing else changes. No hamburger menu (no menu). No sticky header. No
+fab buttons.
+
+
+ACCESSIBILITY
+-------------
+- All text ≥ 14px except labels (11px tracked is AA legible).
+- Minimum contrast: Ink body on canvas = 7.3:1. Ink muted on canvas = 3.9:1
+  (used only for meta — never for actionable text).
+- Focus states visible for keyboard users (1.5px Accent underline).
+- All chip toggles are real <button> elements with aria-pressed.
+- Color is never the only signal — active chips also have a thicker border
+  and different text weight.
+
+
+ANTI-PATTERNS (explicitly avoid)
+--------------------------------
+- Rounded corners larger than 2px anywhere.
+- Drop shadows, even subtle ones. This design uses hairlines only.
+- Gradient backgrounds.
+- Pure white (#FFF) or pure black (#000).
+- Icons for navigation or actions. Text labels only.
+- More than one accent color.
+- Card containers with four borders on all sides.
+- Emoji.
+- Skeletal loading shimmers. Use the "Thinking…" line instead.
+- Dark mode. This design is explicitly a light, reverent surface. If dark mode
+  is mandatory later, treat it as a separate design, not an inversion.
+
+
+REFERENCE IMAGES (for mood, not structure)
+------------------------------------------
+- Muji print catalog pages (2018–2024)
+- Aesop store signage and pamphlets
+- Kinfolk magazine body pages
+- MUJI.com (Japanese version) product listing
+- Kinto product catalog pages
+- The typography of NYT's "The Morning" newsletter (serif body)
+
+
+ACCEPTANCE CHECK
+----------------
+When the design is implemented, a reader should be able to look at a card
+and think "this feels like a page from a small guidebook," not "this looks
+like a SaaS app." If it looks like Stripe, Vercel, or Notion, it's wrong.
+If it looks like a Muji packaging insert or a Kinfolk sidebar, it's right.
