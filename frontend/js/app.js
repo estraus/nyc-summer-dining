@@ -39,10 +39,19 @@ function priceLabel(tier) {
   return "$".repeat(tier);
 }
 
+function resyVenueSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 function bookingAction(card) {
   if (card.booking_platform === "resy" && card.resy_venue_id) {
     return {
-      href: card.booking_url ?? `https://resy.com/cities/ny/${card.id}`,
+      href:
+        card.booking_url ??
+        `https://resy.com/cities/new-york-ny/venues/${resyVenueSlug(card.name)}`,
       label: "Book on Resy",
     };
   }
