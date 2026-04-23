@@ -4,6 +4,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
+import httpx
+
 
 @dataclass(frozen=True)
 class LLMCall:
@@ -141,3 +143,85 @@ class AnthropicLLMClient:
         ) as stream:
             async for text in stream.text_stream:
                 yield text
+
+
+class OpenAICompatibleLLMClient:
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        base_url: str,
+        default_model: str,
+        sync_transport: httpx.BaseTransport | None = None,
+        async_transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        from openai import OpenAI
+
+        sync_http = httpx.Client(transport=sync_transport) if sync_transport else None
+        self._client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            http_client=sync_http,
+        )
+        self._api_key = api_key
+        self._base_url = base_url
+        self._default_model = default_model
+        self._async_transport = async_transport
+
+    def complete(
+        self,
+        *,
+        system: str,
+        user: str,
+        max_tokens: int,
+        temperature: float = 0.3,
+        model: str | None = None,
+    ) -> str:
+        resp = self._client.chat.completions.create(
+            model=model or self._default_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        if not resp.choices:
+            return ""
+        return resp.choices[0].message.content or ""
+
+    async def stream(
+        self,
+        *,
+        system: str,
+        user: str,
+        max_tokens: int,
+        temperature: float = 0.3,
+        model: str | None = None,
+    ) -> AsyncIterator[str]:
+        from openai import AsyncOpenAI
+
+        async_http = (
+            httpx.AsyncClient(transport=self._async_transport) if self._async_transport else None
+        )
+        async_client = AsyncOpenAI(
+            api_key=self._api_key,
+            base_url=self._base_url,
+            http_client=async_http,
+        )
+        stream = await async_client.chat.completions.create(
+            model=model or self._default_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta

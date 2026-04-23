@@ -13,6 +13,7 @@ dependencies = [
     "bcrypt>=4.2",
     "itsdangerous>=2.2",
     "anthropic>=0.39",
+    "openai>=1.50",
     "structlog>=24.4",
     "python-multipart>=0.0.12",
 ]

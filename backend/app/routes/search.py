@@ -78,7 +78,7 @@ def search(body: SearchRequest, _request: Request) -> SearchResponse:
             preferences_text=body.preferences_text,
             target_n=body.target_n,
         ),
-        model=settings.llm_model,
+        model=settings.active_llm_model,
     )
     return SearchResponse(
         candidates=candidates,

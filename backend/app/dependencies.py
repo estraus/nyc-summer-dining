@@ -4,13 +4,23 @@ import os
 from functools import lru_cache
 
 from app.config import get_settings
-from app.services.llm_client import AnthropicLLMClient, LLMClient
+from app.services.llm_client import (
+    AnthropicLLMClient,
+    LLMClient,
+    OpenAICompatibleLLMClient,
+)
 from app.services.resy_client import RealResyClient, ResyClient
 
 
 @lru_cache(maxsize=1)
 def _real_llm() -> LLMClient:
     settings = get_settings()
+    if settings.llm_provider == "nvidia":
+        return OpenAICompatibleLLMClient(
+            api_key=settings.nvidia_api_key,
+            base_url=settings.nvidia_base_url,
+            default_model=settings.nvidia_model,
+        )
     return AnthropicLLMClient(api_key=settings.anthropic_api_key, default_model=settings.llm_model)
 
 
