@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from collections.abc import AsyncIterator
 from dataclasses import asdict
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.dependencies import get_llm_client
+from app.rate_limit import SlidingWindowLimiter
 from app.services.ranker import RankingRequest, rank_sync, stream_cards
 from app.services.shortlist import ShortlistFilters, ShortlistItem, fetch_shortlist
 
@@ -18,6 +20,40 @@ CANDIDATE_LIMIT = 25
 SHORTLIST_FETCH_LIMIT = 40
 
 router = APIRouter(prefix="/api", tags=["search"])
+
+_search_limiter: SlidingWindowLimiter | None = None
+
+
+def _get_search_limiter() -> SlidingWindowLimiter:
+    global _search_limiter
+    if _search_limiter is None:
+        settings = get_settings()
+        _search_limiter = SlidingWindowLimiter(
+            max_attempts=settings.search_rate_limit,
+            window_seconds=settings.search_rate_window_seconds,
+        )
+    return _search_limiter
+
+
+def _reset_search_limiter() -> None:  # pyright: ignore[reportUnusedFunction]
+    global _search_limiter
+    _search_limiter = None
+
+
+def _client_ip(request: Request) -> str:
+    if request.client is None:
+        return "unknown"
+    return request.client.host or "unknown"
+
+
+def _enforce_search_rate_limit(request: Request) -> None:
+    retry_after = _get_search_limiter().check(_client_ip(request))
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail="rate_limited",
+            headers={"Retry-After": str(max(1, math.ceil(retry_after)))},
+        )
 
 
 class SearchRequest(BaseModel):
@@ -81,7 +117,8 @@ def _prepare_search(body: SearchRequest) -> tuple[list[ShortlistItem], RankingRe
 
 
 @router.post("/search", response_model=SearchResponse)
-def search(body: SearchRequest, _request: Request) -> SearchResponse:
+def search(body: SearchRequest, request: Request) -> SearchResponse:
+    _enforce_search_rate_limit(request)
     items, rank_req = _prepare_search(body)
     candidates = [CandidateResponse.model_validate(_candidate_dict(item)) for item in items]
     ranked_cards = rank_sync(
@@ -100,7 +137,8 @@ def _sse_event(name: str, payload: object) -> str:
 
 
 @router.post("/search/stream")
-async def search_stream(body: SearchRequest) -> StreamingResponse:
+async def search_stream(body: SearchRequest, request: Request) -> StreamingResponse:
+    _enforce_search_rate_limit(request)
     items, rank_req = await asyncio.to_thread(_prepare_search, body)
     candidates_payload = [_candidate_dict(item) for item in items]
     llm = get_llm_client()
