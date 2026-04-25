@@ -68,6 +68,29 @@ def _parse_sse(raw: str) -> list[tuple[str, object]]:
     return events
 
 
+def test_stream_routes_through_active_llm_model_when_provider_overridden(
+    streaming_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("LLM_PROVIDER", "nvidia")
+    monkeypatch.setenv("NVIDIA_MODEL", "test/nvidia-only-model")
+    get_settings.cache_clear()
+    fake = FakeLLMClient(stream_responses=[['<card id="a-williamsburg">x</card>']])
+    set_llm_override(fake)
+    try:
+        with streaming_client.stream(
+            "POST", "/api/search/stream", json={"preferences_text": "fun"}
+        ) as resp:
+            assert resp.status_code == 200
+            list(resp.iter_text())
+    finally:
+        set_llm_override(None)
+
+    assert fake.calls, "expected the streaming endpoint to call the LLM"
+    assert fake.calls[0].model == "test/nvidia-only-model"
+
+
 def test_stream_emits_candidates_then_cards_then_done(streaming_client: TestClient) -> None:
     fake = FakeLLMClient(
         stream_responses=[

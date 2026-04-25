@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import httpx
+
+if TYPE_CHECKING:
+    from anthropic import AsyncAnthropic
+    from openai import AsyncOpenAI
 
 
 @dataclass(frozen=True)
@@ -96,8 +100,10 @@ class AnthropicLLMClient:
     def __init__(self, api_key: str, default_model: str) -> None:
         from anthropic import Anthropic
 
+        self._api_key = api_key
         self._client = Anthropic(api_key=api_key)
         self._default_model = default_model
+        self._async_client: object | None = None
 
     def complete(
         self,
@@ -133,7 +139,9 @@ class AnthropicLLMClient:
     ) -> AsyncIterator[str]:
         from anthropic import AsyncAnthropic
 
-        async_client = AsyncAnthropic(api_key=self._client.api_key)
+        if self._async_client is None:
+            self._async_client = AsyncAnthropic(api_key=self._api_key)
+        async_client = cast("AsyncAnthropic", self._async_client)
         async with async_client.messages.stream(
             model=model or self._default_model,
             max_tokens=max_tokens,
@@ -167,6 +175,7 @@ class OpenAICompatibleLLMClient:
         self._base_url = base_url
         self._default_model = default_model
         self._async_transport = async_transport
+        self._async_client: AsyncOpenAI | None = None
 
     def complete(
         self,
@@ -201,14 +210,18 @@ class OpenAICompatibleLLMClient:
     ) -> AsyncIterator[str]:
         from openai import AsyncOpenAI
 
-        async_http = (
-            httpx.AsyncClient(transport=self._async_transport) if self._async_transport else None
-        )
-        async_client = AsyncOpenAI(
-            api_key=self._api_key,
-            base_url=self._base_url,
-            http_client=async_http,
-        )
+        if self._async_client is None:
+            async_http = (
+                httpx.AsyncClient(transport=self._async_transport)
+                if self._async_transport
+                else None
+            )
+            self._async_client = AsyncOpenAI(
+                api_key=self._api_key,
+                base_url=self._base_url,
+                http_client=async_http,
+            )
+        async_client = self._async_client
         stream = await async_client.chat.completions.create(
             model=model or self._default_model,
             messages=[

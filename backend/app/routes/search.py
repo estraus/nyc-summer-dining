@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import asdict
@@ -11,7 +12,10 @@ from pydantic import BaseModel, Field
 from app.config import get_settings
 from app.dependencies import get_llm_client
 from app.services.ranker import RankingRequest, rank_sync, stream_cards
-from app.services.shortlist import ShortlistFilters, fetch_shortlist
+from app.services.shortlist import ShortlistFilters, ShortlistItem, fetch_shortlist
+
+CANDIDATE_LIMIT = 25
+SHORTLIST_FETCH_LIMIT = 40
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -52,33 +56,38 @@ class SearchResponse(BaseModel):
     ranked: list[RankedCardResponse]
 
 
-@router.post("/search", response_model=SearchResponse)
-def search(body: SearchRequest, _request: Request) -> SearchResponse:
+def _candidate_dict(item: ShortlistItem) -> dict[str, object]:
+    return {k: v for k, v in asdict(item).items() if k != "source_count"}
+
+
+def _prepare_search(body: SearchRequest) -> tuple[list[ShortlistItem], RankingRequest]:
     settings = get_settings()
     filters = ShortlistFilters(
         neighborhoods=body.neighborhoods,
         boroughs=body.boroughs,
         price_ceiling=body.price_ceiling,
     )
-    items = fetch_shortlist(settings.db_path, filters, limit=40)
-    if len(items) > 25:
-        items = items[:25]
-    candidates = [
-        CandidateResponse(**{k: v for k, v in asdict(item).items() if k != "source_count"})
-        for item in items
-    ]
+    items = fetch_shortlist(settings.db_path, filters, limit=SHORTLIST_FETCH_LIMIT)
+    if len(items) > CANDIDATE_LIMIT:
+        items = items[:CANDIDATE_LIMIT]
+    rank_req = RankingRequest(
+        shortlist=items,
+        cuisines=body.cuisines,
+        vibes=body.vibes,
+        preferences_text=body.preferences_text,
+        target_n=body.target_n,
+    )
+    return items, rank_req
 
-    llm = get_llm_client()
+
+@router.post("/search", response_model=SearchResponse)
+def search(body: SearchRequest, _request: Request) -> SearchResponse:
+    items, rank_req = _prepare_search(body)
+    candidates = [CandidateResponse.model_validate(_candidate_dict(item)) for item in items]
     ranked_cards = rank_sync(
-        llm=llm,
-        request=RankingRequest(
-            shortlist=items,
-            cuisines=body.cuisines,
-            vibes=body.vibes,
-            preferences_text=body.preferences_text,
-            target_n=body.target_n,
-        ),
-        model=settings.active_llm_model,
+        llm=get_llm_client(),
+        request=rank_req,
+        model=get_settings().active_llm_model,
     )
     return SearchResponse(
         candidates=candidates,
@@ -92,31 +101,14 @@ def _sse_event(name: str, payload: object) -> str:
 
 @router.post("/search/stream")
 async def search_stream(body: SearchRequest) -> StreamingResponse:
-    settings = get_settings()
-    filters = ShortlistFilters(
-        neighborhoods=body.neighborhoods,
-        boroughs=body.boroughs,
-        price_ceiling=body.price_ceiling,
-    )
-    items = fetch_shortlist(settings.db_path, filters, limit=40)
-    if len(items) > 25:
-        items = items[:25]
-    candidates_payload = [
-        {k: v for k, v in asdict(item).items() if k != "source_count"} for item in items
-    ]
-
+    items, rank_req = await asyncio.to_thread(_prepare_search, body)
+    candidates_payload = [_candidate_dict(item) for item in items]
     llm = get_llm_client()
-    rank_req = RankingRequest(
-        shortlist=items,
-        cuisines=body.cuisines,
-        vibes=body.vibes,
-        preferences_text=body.preferences_text,
-        target_n=body.target_n,
-    )
+    model = get_settings().active_llm_model
 
     async def generator() -> AsyncIterator[str]:
         yield _sse_event("candidates", {"candidates": candidates_payload})
-        async for card in stream_cards(llm=llm, request=rank_req, model=settings.llm_model):
+        async for card in stream_cards(llm=llm, request=rank_req, model=model):
             yield _sse_event("card", {"id": card.id, "reason": card.reason})
         yield _sse_event("done", {"ok": True})
 

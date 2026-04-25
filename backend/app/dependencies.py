@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 
 from app.config import get_settings
@@ -43,9 +42,10 @@ _resy_override: ResyClient | None = None
 
 @lru_cache(maxsize=1)
 def _real_resy() -> ResyClient:
+    settings = get_settings()
     return RealResyClient(
-        api_key=os.getenv("RESY_API_KEY", ""),
-        auth_token=os.getenv("RESY_AUTH_TOKEN", ""),
+        api_key=settings.resy_api_key,
+        auth_token=settings.resy_auth_token,
     )
 
 

@@ -14,6 +14,33 @@ from app.db import run_migrations
 
 PUBLIC_PREFIXES = ("/healthz", "/login", "/api/login/", "/css/", "/js/")
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self'; "
+        "script-src 'self'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'; "
+        "base-uri 'self'"
+    ),
+}
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
+        return response
+
 
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, signing_key_getter: Callable[[], str]) -> None:
@@ -55,6 +82,7 @@ def create_app() -> FastAPI:
     application.add_middleware(
         AuthMiddleware, signing_key_getter=lambda: get_settings().cookie_signing_key
     )
+    application.add_middleware(SecurityHeadersMiddleware)
 
     @application.get("/healthz")
     def healthz() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]

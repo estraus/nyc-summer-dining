@@ -108,6 +108,24 @@ def test_openai_compat_complete_returns_text() -> None:
     assert out == "hi there"
 
 
+async def test_openai_compat_stream_reuses_async_client() -> None:
+    transport = httpx.MockTransport(_stream_handler(["x"]))
+    client = OpenAICompatibleLLMClient(
+        api_key="test-key",
+        base_url="https://example.test/v1",
+        default_model="test-model",
+        async_transport=transport,
+    )
+    async for _ in client.stream(system="s", user="u", max_tokens=10):
+        pass
+    first = client._async_client
+    async for _ in client.stream(system="s", user="u", max_tokens=10):
+        pass
+    second = client._async_client
+    assert first is not None
+    assert first is second
+
+
 async def test_openai_compat_stream_yields_deltas() -> None:
     transport = httpx.MockTransport(_stream_handler(["hello", " world", "!"]))
     client = OpenAICompatibleLLMClient(

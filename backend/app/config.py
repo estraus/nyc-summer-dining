@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,6 +20,11 @@ class Settings(BaseSettings):
     nvidia_api_key: str = ""
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_model: str = "minimaxai/minimax-m2.7"
+    resy_api_key: str = ""
+    resy_auth_token: str = ""
+    cookie_secure: bool = False
+    login_rate_limit: int = 10
+    login_rate_window_seconds: int = 3600
 
     @property
     def db_path(self) -> Path:
@@ -31,5 +37,6 @@ class Settings(BaseSettings):
         return self.llm_model
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()

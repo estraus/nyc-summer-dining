@@ -4,6 +4,24 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app import dependencies
+from app.config import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _clear_caches() -> Iterator[None]:
+    from app.routes import auth as auth_routes
+
+    get_settings.cache_clear()
+    dependencies._real_resy.cache_clear()
+    dependencies._real_llm.cache_clear()
+    auth_routes._reset_login_limiter()
+    yield
+    get_settings.cache_clear()
+    dependencies._real_resy.cache_clear()
+    dependencies._real_llm.cache_clear()
+    auth_routes._reset_login_limiter()
+
 
 @pytest.fixture
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:

@@ -80,44 +80,46 @@ def fetch_shortlist(
             """,
             [*params, limit],
         ).fetchall()
+        if not rows:
+            return []
 
-        items: list[ShortlistItem] = []
-        for row in rows:
-            tag_rows = conn.execute(
-                """
-                SELECT t.name, t.kind FROM tags t
-                JOIN restaurant_tags rt ON rt.tag_id = t.id
-                WHERE rt.restaurant_id = ?
-                """,
-                (row["id"],),
-            ).fetchall()
-            cuisine: list[str] = []
-            vibe: list[str] = []
-            feature: list[str] = []
-            for t in tag_rows:
-                if t["kind"] == "cuisine":
-                    cuisine.append(t["name"])
-                elif t["kind"] == "vibe":
-                    vibe.append(t["name"])
-                else:
-                    feature.append(t["name"])
+        ids = [row["id"] for row in rows]
+        placeholders = ",".join("?" * len(ids))
 
-            source_rows = conn.execute(
-                """
-                SELECT publication, list_name, blurb
-                FROM restaurant_sources WHERE restaurant_id = ?
-                """,
-                (row["id"],),
-            ).fetchall()
-            sources: list[dict[str, str | None]] = [
+        tags_by_restaurant: dict[str, dict[str, list[str]]] = {
+            rid: {"cuisine": [], "vibe": [], "feature": []} for rid in ids
+        }
+        for t in conn.execute(
+            f"""
+            SELECT rt.restaurant_id, t.name, t.kind FROM tags t
+            JOIN restaurant_tags rt ON rt.tag_id = t.id
+            WHERE rt.restaurant_id IN ({placeholders})
+            """,
+            ids,
+        ).fetchall():
+            bucket = tags_by_restaurant[t["restaurant_id"]]
+            kind = t["kind"] if t["kind"] in bucket else "feature"
+            bucket[kind].append(t["name"])
+
+        sources_by_restaurant: dict[str, list[dict[str, str | None]]] = {rid: [] for rid in ids}
+        for s in conn.execute(
+            f"""
+            SELECT restaurant_id, publication, list_name, blurb
+            FROM restaurant_sources WHERE restaurant_id IN ({placeholders})
+            """,
+            ids,
+        ).fetchall():
+            sources_by_restaurant[s["restaurant_id"]].append(
                 {
                     "publication": s["publication"],
                     "list_name": s["list_name"],
                     "blurb": s["blurb"],
                 }
-                for s in source_rows
-            ]
+            )
 
+        items: list[ShortlistItem] = []
+        for row in rows:
+            tags = tags_by_restaurant[row["id"]]
             items.append(
                 ShortlistItem(
                     id=row["id"],
@@ -129,10 +131,10 @@ def fetch_shortlist(
                     booking_url=row["booking_url"],
                     resy_venue_id=row["resy_venue_id"],
                     description=row["description"],
-                    cuisine_tags=sorted(cuisine),
-                    vibe_tags=sorted(vibe),
-                    feature_tags=sorted(feature),
-                    sources=sources,
+                    cuisine_tags=sorted(tags["cuisine"]),
+                    vibe_tags=sorted(tags["vibe"]),
+                    feature_tags=sorted(tags["feature"]),
+                    sources=sources_by_restaurant[row["id"]],
                     source_count=int(row["source_count"]),
                 )
             )

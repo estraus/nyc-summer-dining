@@ -110,3 +110,32 @@ def test_needs_review_excluded_by_default(seeded_db: Path) -> None:
 def test_limit_applies(seeded_db: Path) -> None:
     results = fetch_shortlist(seeded_db, ShortlistFilters(), limit=1)
     assert len(results) == 1
+
+
+def test_fetch_shortlist_uses_bounded_query_count(seeded_db: Path) -> None:
+    from app import db as db_module
+    from app.db import connect
+
+    queries: list[str] = []
+    real_connect = connect
+
+    def tracing_connect(p: Path):  # type: ignore[no-untyped-def]
+        conn = real_connect(p)
+        conn.set_trace_callback(lambda sql: queries.append(sql))
+        return conn
+
+    import app.services.shortlist as shortlist_mod
+
+    original = shortlist_mod.connect
+    shortlist_mod.connect = tracing_connect  # type: ignore[assignment]
+    try:
+        results = fetch_shortlist(seeded_db, ShortlistFilters())
+    finally:
+        shortlist_mod.connect = original  # type: ignore[assignment]
+
+    assert len(results) == 3
+    select_queries = [q for q in queries if q.lstrip().upper().startswith("SELECT")]
+    assert len(select_queries) <= 5, (
+        f"expected ≤5 SELECTs regardless of row count, got {len(select_queries)}: {select_queries}"
+    )
+    _ = db_module
