@@ -15,6 +15,11 @@ primary_region = "ewr"
   min_machines_running = 0
   processes = ["app"]
 
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 4
+    hard_limit = 5
+
 [[mounts]]
   source = "dining_data"
   destination = "/data"

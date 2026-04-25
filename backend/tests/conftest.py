@@ -11,16 +11,19 @@ from app.config import get_settings
 @pytest.fixture(autouse=True)
 def _clear_caches() -> Iterator[None]:
     from app.routes import auth as auth_routes
+    from app.routes import search as search_routes
 
     get_settings.cache_clear()
     dependencies._real_resy.cache_clear()
     dependencies._real_llm.cache_clear()
     auth_routes._reset_login_limiter()
+    search_routes._reset_search_limiter()
     yield
     get_settings.cache_clear()
     dependencies._real_resy.cache_clear()
     dependencies._real_llm.cache_clear()
     auth_routes._reset_login_limiter()
+    search_routes._reset_search_limiter()
 
 
 @pytest.fixture

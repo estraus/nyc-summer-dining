@@ -98,6 +98,54 @@ def test_search_requires_auth(tmp_db: Path) -> None:
     assert resp.status_code == 401
 
 
+def test_search_rate_limit_returns_429(
+    logged_in_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SEARCH_RATE_LIMIT", "2")
+    monkeypatch.setenv("SEARCH_RATE_WINDOW_SECONDS", "3600")
+    from app.config import get_settings
+    from app.routes import search as search_routes
+
+    get_settings.cache_clear()
+    search_routes._reset_search_limiter()
+
+    fake = FakeLLMClient(responses=['<card id="x">x</card>', '<card id="x">x</card>'])
+    set_llm_override(fake)
+    try:
+        for _ in range(2):
+            r = logged_in_client.post("/api/search", json={})
+            assert r.status_code == 200
+        r = logged_in_client.post("/api/search", json={})
+        assert r.status_code == 429
+        assert "retry-after" in {h.lower() for h in r.headers}
+    finally:
+        set_llm_override(None)
+
+
+def test_search_stream_rate_limit_returns_429(
+    logged_in_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SEARCH_RATE_LIMIT", "1")
+    monkeypatch.setenv("SEARCH_RATE_WINDOW_SECONDS", "3600")
+    from app.config import get_settings
+    from app.routes import search as search_routes
+
+    get_settings.cache_clear()
+    search_routes._reset_search_limiter()
+
+    fake = FakeLLMClient(stream_responses=[['<card id="x">x</card>']])
+    set_llm_override(fake)
+    try:
+        with logged_in_client.stream("POST", "/api/search/stream", json={}) as resp:
+            assert resp.status_code == 200
+            list(resp.iter_text())
+        r2 = logged_in_client.post("/api/search/stream", json={})
+        assert r2.status_code == 429
+        assert "retry-after" in {h.lower() for h in r2.headers}
+    finally:
+        set_llm_override(None)
+
+
 def test_search_empty_shortlist(logged_in_client: TestClient) -> None:
     fake = FakeLLMClient(responses=[])
     set_llm_override(fake)

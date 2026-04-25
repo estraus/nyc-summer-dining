@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     login_rate_limit: int = 10
     login_rate_window_seconds: int = 3600
+    search_rate_limit: int = 30
+    search_rate_window_seconds: int = 3600
 
     @property
     def db_path(self) -> Path:
