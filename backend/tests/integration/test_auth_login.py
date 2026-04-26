@@ -81,6 +81,7 @@ def test_cookies_omit_secure_flag_when_disabled(password_client: TestClient) -> 
 def test_cookies_marked_secure_when_enabled(tmp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SHARED_PASSWORD_HASH", hash_password("p"))
     monkeypatch.setenv("COOKIE_SECURE", "true")
+    monkeypatch.setenv("COOKIE_SIGNING_KEY", "a" * 64)
     from app.config import get_settings
     from app.main import create_app
 
