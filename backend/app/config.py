@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +28,29 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 3600
     search_rate_limit: int = 30
     search_rate_window_seconds: int = 3600
+
+    @model_validator(mode="after")
+    def _reject_insecure_prod_defaults(self) -> "Settings":
+        if not self.cookie_secure:
+            return self
+        errors: list[str] = []
+        if self.cookie_signing_key == "dev-insecure-change-me":
+            errors.append(
+                "COOKIE_SIGNING_KEY is the dev placeholder — "
+                "generate a real key with: openssl rand -hex 32"
+            )
+        if not self.shared_password_hash:
+            errors.append(
+                "SHARED_PASSWORD_HASH is empty — "
+                "the app would be accessible without a password"
+            )
+        if errors:
+            bullet = "\n  • "
+            raise ValueError(
+                f"Refusing to start: COOKIE_SECURE=true with insecure settings:{bullet}"
+                + bullet.join(errors)
+            )
+        return self
 
     @property
     def db_path(self) -> Path:
