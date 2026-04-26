@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
- && pip install --no-cache-dir uv
+ && pip install --no-cache-dir uv \
+ && adduser --system --no-create-home --uid 1000 appuser
 
 WORKDIR /app
 
@@ -21,6 +22,9 @@ WORKDIR /app/backend
 
 ENV DATA_DIR=/data
 VOLUME ["/data"]
+
+RUN mkdir -p /data && chown appuser /data
+USER appuser
 
 EXPOSE 8080
 
