@@ -11,9 +11,11 @@ htmlcov/
 dist/
 build/
 
-# Env
+# Env — never commit any env file containing real secrets
 .env
-.env.local
+.env.*
+*.env
+!.env.example
 .venv/
 venv/
 
