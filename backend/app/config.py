@@ -41,8 +41,7 @@ class Settings(BaseSettings):
             )
         if not self.shared_password_hash:
             errors.append(
-                "SHARED_PASSWORD_HASH is empty — "
-                "the app would be accessible without a password"
+                "SHARED_PASSWORD_HASH is empty — the app would be accessible without a password"
             )
         if errors:
             bullet = "\n  • "
