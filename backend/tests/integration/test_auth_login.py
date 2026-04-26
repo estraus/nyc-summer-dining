@@ -50,9 +50,7 @@ def test_complete_login_requires_pre_auth(tmp_db: Path, monkeypatch: pytest.Monk
     assert resp.status_code == 401
 
 
-def test_login_rate_limit_returns_429(
-    tmp_db: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_login_rate_limit_returns_429(tmp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SHARED_PASSWORD_HASH", hash_password("p"))
     monkeypatch.setenv("LOGIN_RATE_LIMIT", "3")
     monkeypatch.setenv("LOGIN_RATE_WINDOW_SECONDS", "3600")
@@ -80,9 +78,7 @@ def test_cookies_omit_secure_flag_when_disabled(password_client: TestClient) -> 
     assert "Secure" not in set_cookie
 
 
-def test_cookies_marked_secure_when_enabled(
-    tmp_db: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cookies_marked_secure_when_enabled(tmp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SHARED_PASSWORD_HASH", hash_password("p"))
     monkeypatch.setenv("COOKIE_SECURE", "true")
     from app.config import get_settings

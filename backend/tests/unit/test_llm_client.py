@@ -81,9 +81,7 @@ def _stream_handler(pieces: list[str]) -> Callable[[httpx.Request], httpx.Respon
                 "object": "chat.completion.chunk",
                 "created": 0,
                 "model": "test-model",
-                "choices": [
-                    {"index": 0, "delta": {"content": p}, "finish_reason": None}
-                ],
+                "choices": [{"index": 0, "delta": {"content": p}, "finish_reason": None}],
             }
             chunks.append(f"data: {json.dumps(payload)}\n\n")
         chunks.append("data: [DONE]\n\n")
