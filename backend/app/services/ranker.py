@@ -37,6 +37,7 @@ class RankingRequest(BaseModel):
     vibes: list[str] = Field(default_factory=list[str])
     preferences_text: str = ""
     target_n: int = 8
+    notes: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 def parse_cards(text: str) -> list[RankedCard]:
@@ -51,19 +52,21 @@ def parse_cards(text: str) -> list[RankedCard]:
 def _build_user_prompt(req: RankingRequest) -> str:
     shortlist_payload: list[dict[str, Any]] = []
     for item in req.shortlist:
-        shortlist_payload.append(
-            {
-                "id": item.id,
-                "name": item.name,
-                "neighborhood": item.neighborhood,
-                "borough": item.borough,
-                "cuisine_tags": item.cuisine_tags,
-                "vibe_tags": item.vibe_tags,
-                "price_tier": item.price_tier,
-                "description": item.description,
-                "sources": item.sources,
-            }
-        )
+        entry: dict[str, Any] = {
+            "id": item.id,
+            "name": item.name,
+            "neighborhood": item.neighborhood,
+            "borough": item.borough,
+            "cuisine_tags": item.cuisine_tags,
+            "vibe_tags": item.vibe_tags,
+            "price_tier": item.price_tier,
+            "description": item.description,
+            "sources": item.sources,
+        }
+        my_note = req.notes.get(item.id)
+        if my_note is not None:
+            entry["my_note"] = my_note
+        shortlist_payload.append(entry)
     lines: list[str] = []
     if req.cuisines:
         lines.append("Cuisines preferred: " + ", ".join(req.cuisines))

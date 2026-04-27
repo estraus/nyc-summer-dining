@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NYC Dining — Admin</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .tab-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab { padding: 0.4rem 0.8rem; border: 1px solid #ccc; background: canvas; cursor: pointer; border-radius: 4px; }
+    .tab.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+    .filter-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .filter-row select, .filter-row input { padding: 0.35rem; font: inherit; }
+    .admin-card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: canvas; }
+    .admin-card h3 { margin: 0 0 0.25rem 0; }
+    .admin-card .meta { color: GrayText; font-size: 0.9rem; margin: 0 0 0.5rem 0; }
+    .admin-card .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+    .status-open { background: #d4edda; color: #155724; }
+    .status-closed { background: #f8d7da; color: #721c24; }
+    .status-needs_review { background: #fff3cd; color: #856404; }
+    .btn-danger { padding: 0.4rem 0.75rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-warning { padding: 0.4rem 0.75rem; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-success { padding: 0.4rem 0.75rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .inline-form { border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; background: #f9f9f9; }
+    .inline-form label { display: block; margin: 0.4rem 0; font-size: 0.9rem; }
+    .inline-form input, .inline-form select, .inline-form textarea { width: 100%; font: inherit; padding: 0.3rem; box-sizing: border-box; }
+    .inline-form .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .prefill-form-wrap { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .prefill-form-wrap h3 { margin-top: 0; }
+    .prefill-form-wrap label { display: block; margin: 0.5rem 0; font-size: 0.9rem; }
+    .prefill-form-wrap input, .prefill-form-wrap select, .prefill-form-wrap textarea { width: 100%; font: inherit; padding: 0.35rem; box-sizing: border-box; }
+    .form-row { display: flex; gap: 0.5rem; }
+    .form-row label { flex: 1; }
+    .spinner { font-style: italic; color: GrayText; }
+    .reseed-summary { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; }
+    .reseed-summary ul { margin: 0.25rem 0; padding-left: 1.25rem; }
+    section { margin-bottom: 2.5rem; }
+    section h2 { border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
+    .success-msg { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+    .error-msg { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>NYC Dining — Admin</h1>
+    <nav><a href="/">← Search</a></nav>
+  </header>
+
+  <main>
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Section: Add restaurant                                             -->
+    <!-- ------------------------------------------------------------------ -->
+    <section id="add-section">
+      <h2>Add Restaurant</h2>
+
+      <div class="tab-row">
+        <button id="tab-url" class="tab active" type="button">By URL</button>
+        <button id="tab-name" class="tab" type="button">By Name</button>
+        <button id="tab-manual" class="tab" type="button">Manual</button>
+      </div>
+
+      <!-- By URL form -->
+      <form id="add-url-form">
+        <label>
+          <span>Page URL</span>
+          <input type="url" name="url" required placeholder="https://ny.eater.com/…">
+        </label>
+        <button type="submit" id="fetch-url-btn">Fetch &amp; Extract</button>
+        <span id="url-spinner" class="spinner" hidden>Fetching…</span>
+        <div id="url-error" class="error-msg" hidden></div>
+      </form>
+
+      <!-- By Name form -->
+      <form id="add-name-form" hidden>
+        <div class="form-row">
+          <label>
+            <span>Restaurant name</span>
+            <input type="text" name="name" required placeholder="Lilia">
+          </label>
+          <label>
+            <span>Neighborhood (optional)</span>
+            <input type="text" name="neighborhood" placeholder="Williamsburg">
+          </label>
+        </div>
+        <button type="submit" id="fetch-name-btn">Extract</button>
+        <span id="name-spinner" class="spinner" hidden>Extracting…</span>
+        <div id="name-error" class="error-msg" hidden></div>
+      </form>
+
+      <!-- Prefill form (shown after extraction, or for manual entry) -->
+      <div id="prefill-form-wrap" class="prefill-form-wrap" hidden>
+        <h3 id="prefill-heading">Review &amp; Save</h3>
+        <form id="prefill-form">
+          <div class="form-row">
+            <label>
+              <span>Name *</span>
+              <input type="text" name="name" required>
+            </label>
+            <label>
+              <span>Price tier (1-4)</span>
+              <input type="number" name="price_tier" min="1" max="4">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Neighborhood</span>
+              <input type="text" name="neighborhood">
+            </label>
+            <label>
+              <span>Borough</span>
+              <select name="borough">
+                <option value="">—</option>
+                <option>Manhattan</option>
+                <option>Brooklyn</option>
+                <option>Queens</option>
+                <option>Bronx</option>
+                <option>Staten Island</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Address</span>
+            <input type="text" name="address">
+          </label>
+          <div class="form-row">
+            <label>
+              <span>Booking platform</span>
+              <select name="booking_platform">
+                <option value="">—</option>
+                <option value="resy">resy</option>
+                <option value="opentable">opentable</option>
+                <option value="tock">tock</option>
+                <option value="walk_in">walk_in</option>
+                <option value="other">other</option>
+              </select>
+            </label>
+            <label>
+              <span>Resy venue ID</span>
+              <input type="text" name="resy_venue_id">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Booking URL</span>
+              <input type="url" name="booking_url">
+            </label>
+            <label>
+              <span>Website URL</span>
+              <input type="url" name="website_url">
+            </label>
+          </div>
+          <label>
+            <span>Description</span>
+            <textarea name="description" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Cuisine tags (comma-separated)</span>
+            <input type="text" name="cuisine_tags" placeholder="italian, pasta">
+          </label>
+          <label>
+            <span>Vibe tags (comma-separated)</span>
+            <input type="text" name="vibe_tags" placeholder="date-night, casual">
+          </label>
+          <label>
+            <span>Feature tags (comma-separated)</span>
+            <input type="text" name="feature_tags">
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Save Restaurant</button>
+            <button type="button" id="prefill-cancel" class="btn-secondary">Cancel</button>
+          </div>
+          <div id="prefill-error" class="error-msg" hidden></div>
+          <div id="prefill-success" class="success-msg" hidden></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Section: Manage restaurants                                         -->
+    <!-- ------------------------------------------------------------------ -->
+    <section id="manage-section">
+      <h2>Restaurants</h2>
+
+      <div class="filter-row">
+        <select id="status-filter">
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+          <option value="needs_review">Needs Review</option>
+        </select>
+        <input id="search-filter" type="text" placeholder="Search by name…">
+      </div>
+
+      <div id="restaurant-list">
+        <p class="spinner">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------------------ -->
+    <!-- Section: Reseed                                                     -->
+    <!-- ------------------------------------------------------------------ -->
+    <section id="reseed-section">
+      <h2>Reseed</h2>
+      <button id="preview-eater" type="button" class="btn-secondary">
+        Preview Eater Essentials
+      </button>
+      <span id="reseed-spinner" class="spinner" hidden>Running scraper (may take a minute)…</span>
+      <div id="reseed-preview"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
