@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 3600
     search_rate_limit: int = 30
     search_rate_window_seconds: int = 3600
+    b2_key_id: str = ""
+    b2_application_key: str = ""
+    b2_bucket_name: str = ""
 
     @model_validator(mode="after")
     def _reject_insecure_prod_defaults(self) -> "Settings":

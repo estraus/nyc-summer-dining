@@ -28,3 +28,16 @@ primary_region = "ewr"
   cpu_kind = "shared"
   cpus = 1
   memory_mb = 512
+
+# Nightly backup process — runs as a separate scheduled Fly Machine.
+# Deploy once after initial `fly deploy`:
+#   fly machine run . \
+#     --schedule daily \
+#     --entrypoint "uv run python -m scripts.backup" \
+#     --env DATA_DIR=/data \
+#     --mount source=dining_data,destination=/data \
+#     --vm-memory 256
+# Secrets (B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME) are shared
+# with the app via `fly secrets set`.
+[processes]
+  app = "uv run uvicorn app.main:app --host 0.0.0.0 --port 8080"
