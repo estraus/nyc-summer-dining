@@ -27,3 +27,6 @@ data/restaurants.db-shm
 
 # OS
 .DS_Store
+
+# Claude Code internal workspace
+.claude/

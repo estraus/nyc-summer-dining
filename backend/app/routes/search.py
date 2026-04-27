@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.db import connect
 from app.dependencies import get_llm_client
 from app.rate_limit import SlidingWindowLimiter
 from app.services.ranker import RankingRequest, rank_sync, stream_cards
@@ -90,13 +91,45 @@ class CandidateResponse(BaseModel):
 class SearchResponse(BaseModel):
     candidates: list[CandidateResponse]
     ranked: list[RankedCardResponse]
+    notes: dict[str, dict[str, object]] = Field(default_factory=dict)
 
 
 def _candidate_dict(item: ShortlistItem) -> dict[str, object]:
     return {k: v for k, v in asdict(item).items() if k != "source_count"}
 
 
-def _prepare_search(body: SearchRequest) -> tuple[list[ShortlistItem], RankingRequest]:
+def _fetch_notes_for_ids(
+    restaurant_ids: list[str], user_id: int | None
+) -> dict[str, dict[str, object]]:
+    if not restaurant_ids or user_id is None:
+        return {}
+    settings = get_settings()
+    conn = connect(settings.db_path)
+    try:
+        placeholders = ",".join("?" * len(restaurant_ids))
+        rows = conn.execute(
+            f"""
+            SELECT restaurant_id, status, rating, note
+            FROM personal_notes
+            WHERE user_id = ? AND restaurant_id IN ({placeholders})
+            """,
+            [user_id, *restaurant_ids],
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        row["restaurant_id"]: {
+            "status": row["status"],
+            "rating": row["rating"],
+            "note": row["note"],
+        }
+        for row in rows
+    }
+
+
+def _prepare_search(
+    body: SearchRequest, user_id: int | None = None
+) -> tuple[list[ShortlistItem], RankingRequest, dict[str, dict[str, object]]]:
     settings = get_settings()
     filters = ShortlistFilters(
         neighborhoods=body.neighborhoods,
@@ -106,20 +139,24 @@ def _prepare_search(body: SearchRequest) -> tuple[list[ShortlistItem], RankingRe
     items = fetch_shortlist(settings.db_path, filters, limit=SHORTLIST_FETCH_LIMIT)
     if len(items) > CANDIDATE_LIMIT:
         items = items[:CANDIDATE_LIMIT]
+    restaurant_ids = [item.id for item in items]
+    notes = _fetch_notes_for_ids(restaurant_ids, user_id)
     rank_req = RankingRequest(
         shortlist=items,
         cuisines=body.cuisines,
         vibes=body.vibes,
         preferences_text=body.preferences_text,
         target_n=body.target_n,
+        notes=notes,
     )
-    return items, rank_req
+    return items, rank_req, notes
 
 
 @router.post("/search", response_model=SearchResponse)
 def search(body: SearchRequest, request: Request) -> SearchResponse:
     _enforce_search_rate_limit(request)
-    items, rank_req = _prepare_search(body)
+    user_id: int | None = getattr(request.state, "user_id", None)
+    items, rank_req, notes = _prepare_search(body, user_id)
     candidates = [CandidateResponse.model_validate(_candidate_dict(item)) for item in items]
     ranked_cards = rank_sync(
         llm=get_llm_client(),
@@ -129,6 +166,7 @@ def search(body: SearchRequest, request: Request) -> SearchResponse:
     return SearchResponse(
         candidates=candidates,
         ranked=[RankedCardResponse(id=c.id, reason=c.reason) for c in ranked_cards],
+        notes=notes,
     )
 
 
@@ -139,7 +177,8 @@ def _sse_event(name: str, payload: object) -> str:
 @router.post("/search/stream")
 async def search_stream(body: SearchRequest, request: Request) -> StreamingResponse:
     _enforce_search_rate_limit(request)
-    items, rank_req = await asyncio.to_thread(_prepare_search, body)
+    user_id: int | None = getattr(request.state, "user_id", None)
+    items, rank_req, _notes = await asyncio.to_thread(_prepare_search, body, user_id)
     candidates_payload = [_candidate_dict(item) for item in items]
     llm = get_llm_client()
     model = get_settings().active_llm_model
