@@ -289,6 +289,18 @@ function toggleEditForm(card, r) {
   row4.appendChild(field("Website URL", "website_url", r.website_url));
   form.appendChild(row4);
 
+  const row5 = document.createElement("div");
+  row5.className = "form-row";
+  row5.appendChild(field("Google rating (1-5)", "google_rating", r.google_rating, "number"));
+  row5.appendChild(field("Google review count", "google_review_count", r.google_review_count, "number"));
+  row5.appendChild(field("Beli score (0-10)", "beli_score", r.beli_score, "number"));
+  for (const inp of row5.querySelectorAll("input")) inp.min = "0";
+  row5.querySelector("input[name=google_rating]").step = "0.1";
+  row5.querySelector("input[name=google_rating]").max = "5";
+  row5.querySelector("input[name=beli_score]").step = "0.1";
+  row5.querySelector("input[name=beli_score]").max = "10";
+  form.appendChild(row5);
+
   form.appendChild(field("Description", "description", r.description, "textarea"));
   form.appendChild(field("Cuisine tags (comma-sep)", "cuisine_tags", r.cuisine_tags.join(", ")));
   form.appendChild(field("Vibe tags (comma-sep)", "vibe_tags", r.vibe_tags.join(", ")));
@@ -327,8 +339,10 @@ function toggleEditForm(card, r) {
     const payload = {};
     for (const [k, v] of fd.entries()) {
       const s = v.toString().trim();
-      if (k === "price_tier") {
+      if (k === "price_tier" || k === "google_review_count") {
         payload[k] = s ? parseInt(s, 10) : null;
+      } else if (k === "google_rating" || k === "beli_score") {
+        payload[k] = s ? parseFloat(s) : null;
       } else if (k === "cuisine_tags" || k === "vibe_tags" || k === "feature_tags") {
         payload[k] = splitCSV(s);
       } else {

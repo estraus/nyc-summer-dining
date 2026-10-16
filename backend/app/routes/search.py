@@ -86,6 +86,9 @@ class CandidateResponse(BaseModel):
     vibe_tags: list[str]
     feature_tags: list[str]
     sources: list[dict[str, str | None]]
+    google_rating: float | None = None
+    google_review_count: int | None = None
+    beli_score: float | None = None
 
 
 class SearchResponse(BaseModel):

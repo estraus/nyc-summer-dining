@@ -36,6 +36,9 @@ class Restaurant(BaseModel):
     resy_venue_id: str | None = None
     website_url: str | None = None
     description: str | None = None
+    google_rating: float | None = Field(default=None, ge=1, le=5)
+    google_review_count: int | None = Field(default=None, ge=0)
+    beli_score: float | None = Field(default=None, ge=0, le=10)
     status: RestaurantStatus = "open"
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -100,6 +103,9 @@ class SeedRestaurant(BaseModel):
     resy_venue_id: str | None = None
     website_url: str | None = None
     description: str | None = None
+    google_rating: float | None = Field(default=None, ge=1, le=5)
+    google_review_count: int | None = Field(default=None, ge=0)
+    beli_score: float | None = Field(default=None, ge=0, le=10)
     cuisine_tags: list[str] = Field(default_factory=list)
     vibe_tags: list[str] = Field(default_factory=list)
     feature_tags: list[str] = Field(default_factory=list)

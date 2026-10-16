@@ -70,8 +70,8 @@ def import_seed(db_path: Path, seeds: list[SeedRestaurant]) -> ImportResult:
                     INSERT INTO restaurants
                       (id, name, address, neighborhood, borough, latitude, longitude,
                        price_tier, booking_platform, booking_url, resy_venue_id, website_url,
-                       description, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
+                       description, google_rating, google_review_count, beli_score, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
                     """,
                     (
                         slug,
@@ -87,6 +87,9 @@ def import_seed(db_path: Path, seeds: list[SeedRestaurant]) -> ImportResult:
                         seed.resy_venue_id,
                         seed.website_url,
                         seed.description,
+                        seed.google_rating,
+                        seed.google_review_count,
+                        seed.beli_score,
                     ),
                 )
                 inserted += 1
@@ -96,7 +99,13 @@ def import_seed(db_path: Path, seeds: list[SeedRestaurant]) -> ImportResult:
                     UPDATE restaurants SET
                         name=?, address=?, neighborhood=?, borough=?, latitude=?, longitude=?,
                         price_tier=?, booking_platform=?, booking_url=?, resy_venue_id=?,
-                        website_url=?, description=?, updated_at=CURRENT_TIMESTAMP
+                        website_url=?, description=?,
+                        -- Re-seeding from publications never carries ratings, so keep
+                        -- anything entered by hand unless the seed brings a new value.
+                        google_rating=COALESCE(?, google_rating),
+                        google_review_count=COALESCE(?, google_review_count),
+                        beli_score=COALESCE(?, beli_score),
+                        updated_at=CURRENT_TIMESTAMP
                     WHERE id=?
                     """,
                     (
@@ -112,6 +121,9 @@ def import_seed(db_path: Path, seeds: list[SeedRestaurant]) -> ImportResult:
                         seed.resy_venue_id,
                         seed.website_url,
                         seed.description,
+                        seed.google_rating,
+                        seed.google_review_count,
+                        seed.beli_score,
                         slug,
                     ),
                 )

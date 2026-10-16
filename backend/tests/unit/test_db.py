@@ -39,7 +39,8 @@ def test_run_migrations_is_idempotent(tmp_db: Path) -> None:
         versions = conn.execute("SELECT version FROM schema_versions ORDER BY version").fetchall()
     finally:
         conn.close()
-    assert [v[0] for v in versions] == [1]
+    # Each migration is recorded exactly once, however many times the runner is called.
+    assert [v[0] for v in versions] == [1, 2]
 
 
 def test_foreign_keys_enabled(tmp_db: Path) -> None:
