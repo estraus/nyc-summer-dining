@@ -16,6 +16,10 @@ Then open http://localhost:8000.
 
 ## Deploy (Fly.io)
 
+Deploys are manual. The easy way is the **Deploy to Fly** workflow: open the repo's Actions tab, pick it, and click "Run workflow" (or `gh workflow run deploy.yml`). It runs lint, types, and tests first and only deploys if they pass. It needs a `FLY_API_TOKEN` repository secret holding a deploy token for the `nyc-dining` app.
+
+To deploy from your own machine instead:
+
 Secrets are set **only** via `flyctl secrets set` — never committed to the repo or written to `.env` on the server.
 
 ```bash
