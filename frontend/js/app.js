@@ -74,6 +74,32 @@ function sourceChip(source) {
   return chip;
 }
 
+function formatCount(n) {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
+}
+
+// Outside ratings, shown next to the AI pick so you can see where they agree.
+function ratingChips(candidate) {
+  const out = [];
+  if (candidate.google_rating != null) {
+    const chip = document.createElement("span");
+    chip.className = "rating-chip rating-google";
+    const count = candidate.google_review_count != null ? ` (${formatCount(candidate.google_review_count)})` : "";
+    chip.textContent = `Google ${Number(candidate.google_rating).toFixed(1)}${count}`;
+    chip.title = "Google Maps rating, entered in admin";
+    out.push(chip);
+  }
+  if (candidate.beli_score != null) {
+    const chip = document.createElement("span");
+    chip.className = "rating-chip rating-beli";
+    chip.textContent = `Beli ${Number(candidate.beli_score).toFixed(1)}`;
+    chip.title = "Beli score, entered in admin";
+    out.push(chip);
+  }
+  return out;
+}
+
 function renderCard(candidate, reason) {
   const card = document.createElement("article");
   card.className = "card";
@@ -91,6 +117,14 @@ function renderCard(candidate, reason) {
   );
   meta.textContent = bits.join(" · ");
   header.appendChild(meta);
+
+  const ratings = ratingChips(candidate);
+  if (ratings.length) {
+    const row = document.createElement("div");
+    row.className = "ratings";
+    for (const c of ratings) row.appendChild(c);
+    header.appendChild(row);
+  }
 
   card.appendChild(header);
 

@@ -249,3 +249,34 @@ def test_create_restaurant(logged_in_client: TestClient) -> None:
     list_resp = logged_in_client.get("/api/admin/restaurants")
     names = {r["name"] for r in list_resp.json()}
     assert "Don Angie" in names
+
+
+def test_update_sets_and_returns_external_ratings(logged_in_client: TestClient) -> None:
+    resp = logged_in_client.put(
+        "/api/admin/restaurants/lilia-williamsburg",
+        json={"google_rating": 4.6, "google_review_count": 2100, "beli_score": 8.7},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["google_rating"] == 4.6
+    assert body["google_review_count"] == 2100
+    assert body["beli_score"] == 8.7
+
+
+@pytest.mark.parametrize(
+    "payload", [{"google_rating": 6}, {"beli_score": 11}, {"google_review_count": -3}]
+)
+def test_update_rejects_out_of_range_ratings(
+    logged_in_client: TestClient, payload: dict[str, float]
+) -> None:
+    resp = logged_in_client.put("/api/admin/restaurants/lilia-williamsburg", json=payload)
+    assert resp.status_code == 422
+
+
+def test_update_can_clear_a_rating(logged_in_client: TestClient) -> None:
+    logged_in_client.put("/api/admin/restaurants/lilia-williamsburg", json={"beli_score": 8.7})
+    resp = logged_in_client.put(
+        "/api/admin/restaurants/lilia-williamsburg", json={"beli_score": None}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["beli_score"] is None

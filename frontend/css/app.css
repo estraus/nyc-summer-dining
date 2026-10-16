@@ -27,6 +27,13 @@ h1 { margin-top: 0; }
 .card .why { font-style: italic; }
 .card .tags { font-size: 0.9rem; color: GrayText; }
 .card .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.5rem; }
+.card .ratings { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.5rem 0; }
+.rating-chip {
+  padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rating-google { background: #e8f0fe; color: #174ea6; }
+.rating-beli { background: #fce8f1; color: #8a1c4a; }
 .source-chip {
   padding: 0.15rem 0.5rem; border: 1px solid #ddd; border-radius: 999px; font-size: 0.8rem;
 }

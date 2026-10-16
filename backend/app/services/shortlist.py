@@ -32,6 +32,9 @@ class ShortlistItem:
     feature_tags: list[str] = field(default_factory=list[str])
     sources: list[dict[str, str | None]] = field(default_factory=list[dict[str, str | None]])
     source_count: int = 0
+    google_rating: float | None = None
+    google_review_count: int | None = None
+    beli_score: float | None = None
 
 
 def _build_where(filters: ShortlistFilters) -> tuple[str, list[object]]:
@@ -71,6 +74,7 @@ def fetch_shortlist(
             f"""
             SELECT r.id, r.name, r.neighborhood, r.borough, r.price_tier,
                    r.booking_platform, r.booking_url, r.resy_venue_id, r.description,
+                   r.google_rating, r.google_review_count, r.beli_score,
                    COALESCE((SELECT COUNT(*) FROM restaurant_sources rs
                              WHERE rs.restaurant_id = r.id), 0) AS source_count
             FROM restaurants r
@@ -136,6 +140,9 @@ def fetch_shortlist(
                     feature_tags=sorted(tags["feature"]),
                     sources=sources_by_restaurant[row["id"]],
                     source_count=int(row["source_count"]),
+                    google_rating=row["google_rating"],
+                    google_review_count=row["google_review_count"],
+                    beli_score=row["beli_score"],
                 )
             )
         return items

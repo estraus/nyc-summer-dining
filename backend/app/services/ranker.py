@@ -50,6 +50,8 @@ def parse_cards(text: str) -> list[RankedCard]:
 
 
 def _build_user_prompt(req: RankingRequest) -> str:
+    # Google and Beli ratings are left out on purpose: they're shown next to the
+    # AI ranking as an independent check, so the model must not see them.
     shortlist_payload: list[dict[str, Any]] = []
     for item in req.shortlist:
         entry: dict[str, Any] = {

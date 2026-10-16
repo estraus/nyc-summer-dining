@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from selectolax.parser import HTMLParser
 
 from app.config import get_settings
@@ -45,6 +45,9 @@ class RestaurantAdminItem(BaseModel):
     resy_venue_id: str | None
     website_url: str | None
     description: str | None
+    google_rating: float | None = None
+    google_review_count: int | None = None
+    beli_score: float | None = None
     status: str
     created_at: str | None
     updated_at: str | None
@@ -71,6 +74,9 @@ class RestaurantCreateRequest(BaseModel):
     resy_venue_id: str | None = None
     website_url: str | None = None
     description: str | None = None
+    google_rating: float | None = Field(default=None, ge=1, le=5)
+    google_review_count: int | None = Field(default=None, ge=0)
+    beli_score: float | None = Field(default=None, ge=0, le=10)
     cuisine_tags: list[str] = []
     vibe_tags: list[str] = []
     feature_tags: list[str] = []
@@ -90,6 +96,9 @@ class RestaurantUpdateRequest(BaseModel):
     resy_venue_id: str | None = None
     website_url: str | None = None
     description: str | None = None
+    google_rating: float | None = Field(default=None, ge=1, le=5)
+    google_review_count: int | None = Field(default=None, ge=0)
+    beli_score: float | None = Field(default=None, ge=0, le=10)
     cuisine_tags: list[str] | None = None
     vibe_tags: list[str] | None = None
     feature_tags: list[str] | None = None
@@ -181,6 +190,9 @@ def _row_to_admin_item(conn: Any, row: Any) -> RestaurantAdminItem:
         resy_venue_id=row["resy_venue_id"],
         website_url=row["website_url"],
         description=row["description"],
+        google_rating=row["google_rating"],
+        google_review_count=row["google_review_count"],
+        beli_score=row["beli_score"],
         status=row["status"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
@@ -274,6 +286,9 @@ def create_restaurant(body: RestaurantCreateRequest) -> dict[str, str]:
         resy_venue_id=body.resy_venue_id,
         website_url=body.website_url,
         description=body.description,
+        google_rating=body.google_rating,
+        google_review_count=body.google_review_count,
+        beli_score=body.beli_score,
         cuisine_tags=body.cuisine_tags,
         vibe_tags=body.vibe_tags,
         feature_tags=body.feature_tags,
@@ -293,8 +308,8 @@ def create_restaurant(body: RestaurantCreateRequest) -> dict[str, str]:
             INSERT INTO restaurants
               (id, name, address, neighborhood, borough, latitude, longitude,
                price_tier, booking_platform, booking_url, resy_venue_id, website_url,
-               description, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
+               description, google_rating, google_review_count, beli_score, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
             """,
             (
                 restaurant_id,
@@ -310,6 +325,9 @@ def create_restaurant(body: RestaurantCreateRequest) -> dict[str, str]:
                 seed.resy_venue_id,
                 seed.website_url,
                 seed.description,
+                seed.google_rating,
+                seed.google_review_count,
+                seed.beli_score,
             ),
         )
         _replace_tags(conn, restaurant_id, seed.cuisine_tags, seed.vibe_tags, seed.feature_tags)
@@ -357,6 +375,9 @@ def update_restaurant(restaurant_id: str, body: RestaurantUpdateRequest) -> Rest
             "resy_venue_id",
             "website_url",
             "description",
+            "google_rating",
+            "google_review_count",
+            "beli_score",
         ]
         updates: list[str] = []
         values: list[Any] = []
